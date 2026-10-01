@@ -1,0 +1,18 @@
+# Gradle / Android
+*.iml
+.gradle/
+local.properties
+.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# APK промежуточные
+app/release/output-metadata.json
+
+# Прочее
+*.keystore
+!debug.keystore
+*.jks
