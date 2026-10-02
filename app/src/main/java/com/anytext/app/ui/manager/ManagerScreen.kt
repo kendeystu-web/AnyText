@@ -1,4 +1,4 @@
-﻿package com.anytext.app.ui.manager
+package com.anytext.app.ui.manager
 
 import android.content.Intent
 import android.net.Uri
@@ -9,13 +9,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -62,7 +60,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -90,19 +87,19 @@ private const val STORAGE = "/storage/emulated/0"
 private data class Section(val title: String, val path: String, val icon: ImageVector)
 
 private val sections = listOf(
-    Section("Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РїР°РјСЏС‚СЊ", STORAGE, Icons.Filled.Storage),
-    Section("Р—Р°РіСЂСѓР·РєРё", "$STORAGE/Download", Icons.Filled.Download),
-    Section("Р”РѕРєСѓРјРµРЅС‚С‹", "$STORAGE/Documents", Icons.Filled.Folder),
-    Section("РР·РѕР±СЂР°Р¶РµРЅРёСЏ", "$STORAGE/DCIM", Icons.Filled.Image),
-    Section("РњСѓР·С‹РєР°", "$STORAGE/Music", Icons.Filled.Audiotrack)
+    Section("Внутренняя память", STORAGE, Icons.Filled.Storage),
+    Section("Загрузки", "$STORAGE/Download", Icons.Filled.Download),
+    Section("Документы", "$STORAGE/Documents", Icons.Filled.Folder),
+    Section("Изображения", "$STORAGE/DCIM", Icons.Filled.Image),
+    Section("Музыка", "$STORAGE/Music", Icons.Filled.Audiotrack)
 )
 
 private val rootSections = listOf(
-    Section("РљРѕСЂРµРЅСЊ С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјС‹", "/", Icons.Filled.Memory),
-    Section("РЎРёСЃС‚РµРјР°", "/system", Icons.Filled.Memory),
-    Section("Р”Р°РЅРЅС‹Рµ", "/data", Icons.Filled.Memory),
-    Section("Р”Р°РЅРЅС‹Рµ РїСЂРёР»РѕР¶РµРЅРёР№", "/data/data", Icons.Filled.Memory),
-    Section("Root-РїР°РїРєР°", "/root", Icons.Filled.Memory)
+    Section("Корень файловой системы", "/", Icons.Filled.Memory),
+    Section("Система", "/system", Icons.Filled.Memory),
+    Section("Данные", "/data", Icons.Filled.Memory),
+    Section("Данные приложений", "/data/data", Icons.Filled.Memory),
+    Section("Root-папка", "/root", Icons.Filled.Memory)
 )
 
 private val extColors = listOf(
@@ -163,7 +160,7 @@ fun ManagerScreen(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (e: Exception) {
-                // РѕС‚РєСЂРѕРµС‚СЃСЏ Рё Р±РµР· persistable, РїСЂРѕСЃС‚Рѕ РЅРµ СЃРѕС…СЂР°РЅРёС‚СЃСЏ РІ РЅРµРґР°РІРЅРёС…
+                // откроется и без persistable, просто не сохранится в недавних
             }
             onOpenFile("uri|$uri")
         }
@@ -224,7 +221,7 @@ fun ManagerScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "РџСЂРѕРІРѕРґРЅРёРє Рё С‡РёС‚Р°Р»РєР° РІСЃРµРіРѕ",
+                    text = "Проводник и читалка всего",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -233,14 +230,14 @@ fun ManagerScreen(
             IconButton(onClick = onOpenSettings) {
                 Icon(
                     Icons.Filled.Settings,
-                    contentDescription = "РќР°СЃС‚СЂРѕР№РєРё",
+                    contentDescription = "Настройки",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             IconButton(onClick = { vm.updateSettings { it.copy(darkTheme = !it.darkTheme) } }) {
                 Icon(
                     imageVector = if (settings.darkTheme) Icons.Filled.LightMode else Icons.Filled.DarkMode,
-                    contentDescription = "РЎРјРµРЅРёС‚СЊ С‚РµРјСѓ",
+                    contentDescription = "Сменить тему",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -248,7 +245,7 @@ fun ManagerScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // Р”РёР°РіСЂР°РјРјР° РїР°РјСЏС‚Рё, РєР°Рє РІ CX-РїСЂРѕРІРѕРґРЅРёРєРµ
+        // Диаграмма памяти, как в CX-проводнике
         StorageCard(
             info = storageInfo,
             scan = storageScan,
@@ -265,27 +262,27 @@ fun ManagerScreen(
             ) {
                 Column(Modifier.padding(14.dp)) {
                     Text(
-                        text = "РќСѓР¶РµРЅ РґРѕСЃС‚СѓРї РєРѕ РІСЃРµРј С„Р°Р№Р»Р°Рј",
+                        text = "Нужен доступ ко всем файлам",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Р§С‚РѕР±С‹ РїСЂРѕРІРѕРґРЅРёРє РІРёРґРµР» С„Р°Р№Р»С‹ РІРѕ РІРЅСѓС‚СЂРµРЅРЅРµР№ РїР°РјСЏС‚Рё, РІС‹РґР°Р№С‚Рµ РїСЂРёР»РѕР¶РµРЅРёСЋ РґРѕСЃС‚СѓРї РєРѕ РІСЃРµРј С„Р°Р№Р»Р°Рј.",
+                        text = "Чтобы проводник видел файлы во внутренней памяти, выдайте приложению доступ ко всем файлам.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Spacer(Modifier.height(10.dp))
                     Button(onClick = { requestAllFilesAccess() }) {
-                        Text("Р’С‹РґР°С‚СЊ РґРѕСЃС‚СѓРї")
+                        Text("Выдать доступ")
                     }
                 }
             }
         }
 
         Spacer(Modifier.height(24.dp))
-        SectionTitle("РџР°РјСЏС‚СЊ СѓСЃС‚СЂРѕР№СЃС‚РІР°")
-        Spacer(Modifier.height(10.dp))
+        SectionTitle("Память устройства")
+        Spacer(Modifier.height(6.dp))
         Column {
             sections.forEach { s ->
                 SectionRow(
@@ -300,8 +297,8 @@ fun ManagerScreen(
 
         if (settings.widgets.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
-            SectionTitle("Р‘С‹СЃС‚СЂС‹Р№ РґРѕСЃС‚СѓРї")
-            Spacer(Modifier.height(10.dp))
+            SectionTitle("Быстрый доступ")
+            Spacer(Modifier.height(6.dp))
             Column {
                 settings.widgets.forEach { w ->
                     SectionRow(
@@ -330,7 +327,7 @@ fun ManagerScreen(
                     )
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(6.dp))
             Column {
                 rootSections.forEach { s ->
                     SectionRow(
@@ -346,7 +343,7 @@ fun ManagerScreen(
 
         Spacer(Modifier.height(28.dp))
         GradientButton(
-            text = "РћС‚РєСЂС‹С‚СЊ С„Р°Р№Р»",
+            text = "Открыть файл",
             icon = Icons.Filled.FolderOpen,
             onClick = { picker.launch(arrayOf("*/*")) }
         )
@@ -355,39 +352,30 @@ fun ManagerScreen(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "РќРµРґР°РІРЅРёРµ",
+                text = "Недавние",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(Modifier.weight(1f))
             if (recents.isNotEmpty()) {
                 TextButton(onClick = { confirmClear = true }) {
-                    Text("РћС‡РёСЃС‚РёС‚СЊ", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Очистить", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
 
         if (recents.isEmpty()) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant
-                )
-            ) {
-                Text(
-                    text = "РџРѕРєР° РїСѓСЃС‚Рѕ вЂ” РѕС‚РєСЂРѕР№С‚Рµ РїРµСЂРІС‹Р№ С„Р°Р№Р»,\nРѕРЅ РїРѕСЏРІРёС‚СЃСЏ Р·РґРµСЃСЊ.",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = "Пока пусто — откройте первый файл, он появится здесь.",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 14.dp, horizontal = 4.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column {
                 recents.forEach { entry ->
                     RecentCard(
                         entry = entry,
@@ -416,7 +404,7 @@ fun ManagerScreen(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "РўР°Рї РїРѕ С„Р°Р№Р»Сѓ вЂ” СЃРёСЃС‚РµРјРЅС‹Р№ РІС‹Р±РѕСЂ В«РћС‚РєСЂС‹С‚СЊ С‡РµСЂРµР·вЂ¦В». Р”РѕР»РіРёР№ С‚Р°Рї вЂ” РїРѕРґРµР»РёС‚СЊСЃСЏ, РїРµСЂРµРёРјРµРЅРѕРІР°С‚СЊ, СѓРґР°Р»РёС‚СЊ. Р›СЋР±РѕР№ С„Р°Р№Р» РѕС‚РєСЂС‹РІР°РµС‚СЃСЏ РєР°Рє С‚РµРєСЃС‚ РёР»Рё HEX.",
+                    text = "Тап по файлу — системный выбор «Открыть через…». Долгий тап — поделиться, переименовать, удалить. Любой файл открывается как текст или HEX.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -430,16 +418,16 @@ fun ManagerScreen(
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text("РћС‡РёСЃС‚РёС‚СЊ РЅРµРґР°РІРЅРёРµ?") },
-            text = { Text("РЎРїРёСЃРѕРє С„Р°Р№Р»РѕРІ Р±СѓРґРµС‚ СѓРґР°Р»С‘РЅ. РЎР°РјРё С„Р°Р№Р»С‹ РѕСЃС‚Р°РЅСѓС‚СЃСЏ РЅР° РјРµСЃС‚Рµ.") },
+            title = { Text("Очистить недавние?") },
+            text = { Text("Список файлов будет удалён. Сами файлы останутся на месте.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmClear = false
                     vm.clearRecents()
-                }) { Text("РћС‡РёСЃС‚РёС‚СЊ") }
+                }) { Text("Очистить") }
             },
             dismissButton = {
-                TextButton(onClick = { confirmClear = false }) { Text("РћС‚РјРµРЅР°") }
+                TextButton(onClick = { confirmClear = false }) { Text("Отмена") }
             }
         )
     }
@@ -485,7 +473,7 @@ private fun StorageCard(
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = "Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РїР°РјСЏС‚СЊ",
+                    text = "Внутренняя память",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -493,13 +481,13 @@ private fun StorageCard(
                 if (info != null) {
                     val (used, total) = info
                     Text(
-                        text = "Р—Р°РЅСЏС‚Рѕ ${Fmt.size(used, units)} РёР· ${Fmt.size(total, units)} В· СЃРІРѕР±РѕРґРЅРѕ ${Fmt.size(total - used, units)}",
+                        text = "Занято ${Fmt.size(used, units)} из ${Fmt.size(total, units)} · свободно ${Fmt.size(total - used, units)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
                     Text(
-                        text = "РџРѕРґСЃС‡С‘С‚вЂ¦",
+                        text = "Подсчёт…",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -507,9 +495,9 @@ private fun StorageCard(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = if (scan == null) {
-                        "РЎРєР°РЅРёСЂСѓРµРј${progress?.let { ": $it" } ?: "вЂ¦"}"
+                        "Сканируем${progress?.let { ": $it" } ?: "…"}"
                     } else {
-                        "РќР°Р¶РјРёС‚Рµ РґР»СЏ Р°РЅР°Р»РёР·Р°"
+                        "Нажмите для анализа"
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
@@ -640,7 +628,7 @@ private fun RecentCard(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "${Fmt.size(entry.size, units)} В· ${dateFormat.format(Date(entry.lastOpened))}",
+                    text = "${Fmt.size(entry.size, units)} · ${dateFormat.format(Date(entry.lastOpened))}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -658,7 +646,7 @@ private fun RecentCard(
             IconButton(onClick = onRemove) {
                 Icon(
                     Icons.Filled.Close,
-                    contentDescription = "РЈР±СЂР°С‚СЊ РёР· РЅРµРґР°РІРЅРёС…",
+                    contentDescription = "Убрать из недавних",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
