@@ -195,15 +195,6 @@ fun ReaderScreen(spec: String, appVm: AppViewModel, onBack: () -> Unit) {
 
     LaunchedEffect(spec) { vm.load(spec) }
 
-    // файл открыт через нашу читалку — запоминаем расширение, дальше проводник
-    // будет открывать такие файлы сразу здесь
-    LaunchedEffect(ui.file?.ext) {
-        val ext = ui.file?.ext
-        if (!ext.isNullOrEmpty() && appVm.settings.value.assoc[ext] != "reader") {
-            appVm.updateSettings { it.copy(assoc = it.assoc + (ext to "reader")) }
-        }
-    }
-
     val flowScroll = rememberScrollState()
     val listState = rememberLazyListState()
     val hexHScroll = rememberScrollState()

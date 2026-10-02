@@ -36,9 +36,7 @@ data class AppSettings(
     val syntaxHighlight: Boolean = true,
     val widgets: List<PinnedPath> = emptyList(),
     val units: String = "gb",
-    val cacheStorageScan: Boolean = true,
-    /** Расширение → "reader" или packageName внешнего приложения */
-    val assoc: Map<String, String> = emptyMap()
+    val cacheStorageScan: Boolean = true
 )
 
 @Serializable
@@ -63,7 +61,6 @@ object SettingsStore {
     private val K_UNITS = stringPreferencesKey("size_units")
     private val K_CACHE_SCAN = booleanPreferencesKey("cache_storage_scan")
     private val K_SCAN_JSON = stringPreferencesKey("storage_scan_json")
-    private val K_ASSOC = stringPreferencesKey("assoc_json")
     private val widgetsJson = Json { ignoreUnknownKeys = true }
     private val scanJson = Json { ignoreUnknownKeys = true }
 
@@ -80,10 +77,7 @@ object SettingsStore {
                 runCatching { widgetsJson.decodeFromString<List<PinnedPath>>(it) }.getOrNull()
             } ?: emptyList(),
             units = p[K_UNITS] ?: "gb",
-            cacheStorageScan = p[K_CACHE_SCAN] ?: true,
-            assoc = p[K_ASSOC]?.let {
-                runCatching { widgetsJson.decodeFromString<Map<String, String>>(it) }.getOrNull()
-            } ?: emptyMap()
+            cacheStorageScan = p[K_CACHE_SCAN] ?: true
         )
     }
 
@@ -99,7 +93,6 @@ object SettingsStore {
             p[K_WIDGETS] = widgetsJson.encodeToString(s.widgets)
             p[K_UNITS] = s.units
             p[K_CACHE_SCAN] = s.cacheStorageScan
-            p[K_ASSOC] = widgetsJson.encodeToString(s.assoc)
         }
     }
 

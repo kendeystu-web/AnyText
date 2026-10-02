@@ -7,9 +7,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,23 +26,33 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +60,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -75,13 +84,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.anytext.app.logic.Fs
 import com.anytext.app.logic.FsEntry
 import com.anytext.app.logic.Fmt
 import com.anytext.app.viewmodel.AppViewModel
 import com.anytext.app.viewmodel.BrowseViewModel
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -114,11 +123,6 @@ private fun fileIcon(name: String): ImageVector = when (name.substringAfterLast(
 
 private val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
 
-/** Архивы никогда не открываем сами и не запоминаем за читалкой — только в архиваторы */
-private val archiveExts = setOf(
-    "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "cab", "iso", "apk", "jar"
-)
-
 @Composable
 fun BrowseScreen(
     path: String,
@@ -130,6 +134,7 @@ fun BrowseScreen(
     val vm: BrowseViewModel = viewModel()
     val ui by vm.ui.collectAsState()
     val settings by appVm.settings.collectAsState()
+    val clip by vm.clip.collectAsState()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
 
@@ -139,131 +144,210 @@ fun BrowseScreen(
     var actionEntry by remember { mutableStateOf<FsEntry?>(null) }
     var renameEntry by remember { mutableStateOf<FsEntry?>(null) }
     var deleteEntry by remember { mutableStateOf<FsEntry?>(null) }
+    var propsEntry by remember { mutableStateOf<FsEntry?>(null) }
+    var newFolder by remember { mutableStateOf(false) }
     var filterOn by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
+    var sortOpen by remember { mutableStateOf(false) }
+    var sortMode by remember { mutableStateOf("name") }
+    var sortAsc by remember { mutableStateOf(true) }
+    var showHidden by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        TopAppBar(
-            title = {
-                Column {
-                    Text(
-                        text = Fs.dirName(path),
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = path,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+    Scaffold(
+        containerColor = Color.Transparent,
+        floatingActionButton = {
+            if (!ui.loading && ui.error == null) {
+                FloatingActionButton(
+                    onClick = { newFolder = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Filled.CreateNewFolder, contentDescription = "Новая папка")
                 }
-            },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
-                }
-            },
-            actions = {
-                if (isRoot) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier.padding(end = 4.dp)
-                    ) {
-                        Text(
-                            text = "ROOT",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                IconButton(onClick = {
-                    filterOn = !filterOn
-                    if (!filterOn) filter = ""
-                }) {
-                    Icon(
-                        if (filterOn) Icons.Filled.Close else Icons.Filled.Search,
-                        contentDescription = "Фильтр"
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-        )
-        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-        AnimatedVisibility(visible = filterOn) {
-            OutlinedTextField(
-                value = filter,
-                onValueChange = { filter = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 4.dp),
-                placeholder = { Text("Фильтр по имени…", style = MaterialTheme.typography.bodyMedium) },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                textStyle = MaterialTheme.typography.bodyMedium
-            )
+            }
         }
-
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                ui.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                ui.error != null -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(padding)
+        ) {
+            TopAppBar(
+                title = {
+                    Column {
                         Text(
-                            text = ui.error!!,
-                            style = MaterialTheme.typography.bodyLarge,
-                            textAlign = TextAlign.Center
+                            text = Fs.dirName(path),
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(Modifier.height(14.dp))
-                        OutlinedButton(onClick = { vm.open(path, isRoot) }) { Text("Повторить") }
+                        Text(
+                            text = path,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                }
-                else -> {
-                    val shown = if (filter.isEmpty()) ui.entries
-                    else ui.entries.filter { it.name.contains(filter, ignoreCase = true) }
-                    if (shown.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                actions = {
+                    if (isRoot) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
                             Text(
-                                text = if (filter.isEmpty()) "Папка пуста" else "Ничего не найдено",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "ROOT",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Bold
                             )
                         }
-                    } else {
-                        LazyColumn(state = listState) {
-                            items(shown.size) { i ->
-                                val e = shown[i]
-                                EntryRow(
-                                    e = e,
-                                    units = settings.units,
-                                    onClick = {
-                                        val ext = e.name.substringAfterLast('.', "").lowercase()
-                                        when {
-                                            e.isDir -> onOpenDir(e.path)
-                                            // архивы всегда в системный диалог (WinRAR/7z и т.п.)
-                                            ext in archiveExts -> vm.openSystemChooser(e, context)
-                                            // расширение запомнено за нашей читалкой — открываем сразу в ней
-                                            settings.assoc[ext] == "reader" ->
-                                                vm.specFor(e) { spec -> onOpenFile(spec) }
-                                            // иначе — системный диалог выбора приложения
-                                            else -> vm.openSystemChooser(e, context)
-                                        }
-                                    },
-                                    onLongClick = { actionEntry = e }
+                    }
+                    if (clip != null) {
+                        IconButton(onClick = { vm.paste(context) }) {
+                            Icon(
+                                Icons.Filled.ContentPaste,
+                                contentDescription = "Вставить",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Box {
+                        IconButton(onClick = { sortOpen = true }) {
+                            Icon(Icons.Filled.Sort, contentDescription = "Сортировка")
+                        }
+                        DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("По имени" + if (sortMode == "name") (if (sortAsc) " ↑" else " ↓") else "") },
+                                onClick = {
+                                    if (sortMode == "name") sortAsc = !sortAsc
+                                    else { sortMode = "name"; sortAsc = true }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("По размеру" + if (sortMode == "size") (if (sortAsc) " ↑" else " ↓") else "") },
+                                onClick = {
+                                    if (sortMode == "size") sortAsc = !sortAsc
+                                    else { sortMode = "size"; sortAsc = true }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("По дате" + if (sortMode == "date") (if (sortAsc) " ↑" else " ↓") else "") },
+                                onClick = {
+                                    if (sortMode == "date") sortAsc = !sortAsc
+                                    else { sortMode = "date"; sortAsc = true }
+                                }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Показывать скрытые") },
+                                trailingIcon = {
+                                    Checkbox(checked = showHidden, onCheckedChange = { showHidden = it })
+                                },
+                                onClick = { showHidden = !showHidden }
+                            )
+                        }
+                    }
+                    IconButton(onClick = {
+                        filterOn = !filterOn
+                        if (!filterOn) filter = ""
+                    }) {
+                        Icon(
+                            if (filterOn) Icons.Filled.Close else Icons.Filled.Search,
+                            contentDescription = "Фильтр"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+            AnimatedVisibility(visible = filterOn) {
+                OutlinedTextField(
+                    value = filter,
+                    onValueChange = { filter = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 4.dp),
+                    placeholder = { Text("Фильтр по имени…", style = MaterialTheme.typography.bodyMedium) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    ui.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                    ui.error != null -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = ui.error!!,
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            OutlinedButton(onClick = { vm.open(path, isRoot) }) { Text("Повторить") }
+                        }
+                    }
+                    else -> {
+                        val filtered = remember(ui.entries, filter, showHidden) {
+                            var l = ui.entries
+                            if (!showHidden) l = l.filter { !it.name.startsWith(".") }
+                            if (filter.isNotEmpty()) l = l.filter { it.name.contains(filter, ignoreCase = true) }
+                            l
+                        }
+                        val shown = remember(filtered, sortMode, sortAsc) {
+                            when {
+                                sortMode == "name" && sortAsc ->
+                                    filtered.sortedWith(compareBy({ !it.isDir }, { it.name.lowercase() }))
+                                sortMode == "name" ->
+                                    filtered.sortedWith(compareBy<FsEntry> { !it.isDir }.thenByDescending { it.name.lowercase() })
+                                sortMode == "size" && sortAsc ->
+                                    filtered.sortedWith(compareBy({ !it.isDir }, { it.size }))
+                                sortMode == "size" ->
+                                    filtered.sortedWith(compareBy<FsEntry> { !it.isDir }.thenByDescending { it.size })
+                                sortMode == "date" && sortAsc ->
+                                    filtered.sortedWith(compareBy({ !it.isDir }, { it.lastModified }))
+                                else ->
+                                    filtered.sortedWith(compareBy<FsEntry> { !it.isDir }.thenByDescending { it.lastModified })
+                            }
+                        }
+                        if (shown.isEmpty()) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = if (filter.isEmpty()) "Папка пуста" else "Ничего не найдено",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                            }
+                        } else {
+                            LazyColumn(state = listState) {
+                                items(shown.size) { i ->
+                                    val e = shown[i]
+                                    EntryRow(
+                                        e = e,
+                                        units = settings.units,
+                                        onClick = {
+                                            if (e.isDir) onOpenDir(e.path)
+                                            // тап по файлу — всегда системный выбор приложения
+                                            else vm.openSystemChooser(e, context)
+                                        },
+                                        onLongClick = { actionEntry = e }
+                                    )
+                                }
                             }
                         }
                     }
@@ -282,38 +366,43 @@ fun BrowseScreen(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = if (e.isDir) "папка" else "${Fmt.size(e.size, settings.units)} · ${dateFormat.format(Date(e.lastModified))}",
+                text = if (e.isDir) "папка" else Fmt.size(e.size, settings.units),
                 modifier = Modifier.padding(horizontal = 20.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
-            if (!e.isDir) {
-                SheetAction(Icons.Filled.OpenInNew, "Открыть в читалке") {
-                    actionEntry = null
-                    vm.specFor(e) { spec -> onOpenFile(spec) }
-                }
-                SheetAction(Icons.Filled.Share, "Поделиться") {
-                    actionEntry = null
-                    vm.share(e, context)
-                }
+            SheetAction(Icons.Filled.OpenInNew, "Открыть в читалке") {
+                actionEntry = null
+                vm.specFor(e) { spec -> onOpenFile(spec) }
+            }
+            SheetAction(Icons.Filled.ContentCopy, "Копировать") {
+                actionEntry = null
+                vm.copy(e)
+                toast(context, "Скопировано — откройте папку и нажмите «Вставить»")
+            }
+            SheetAction(Icons.Filled.ContentCut, "Вырезать") {
+                actionEntry = null
+                vm.cut(e)
+                toast(context, "Вырезано — откройте папку и нажмите «Вставить»")
+            }
+            SheetAction(Icons.Filled.Share, "Поделиться") {
+                actionEntry = null
+                vm.share(e, context)
             }
             SheetAction(Icons.Filled.ContentCopy, "Копировать путь") {
                 actionEntry = null
                 clipboard.setText(AnnotatedString(e.path))
                 toast(context, "Путь скопирован")
             }
+            SheetAction(Icons.Filled.Info, "Свойства") {
+                actionEntry = null
+                propsEntry = e
+            }
             if (!e.isRoot) {
                 SheetAction(Icons.Filled.Edit, "Переименовать") {
                     actionEntry = null
                     renameEntry = e
-                }
-            }
-            val ext = e.name.substringAfterLast('.', "").lowercase()
-            if (settings.assoc[ext] == "reader") {
-                SheetAction(Icons.Filled.Close, "Сбросить «всегда через читалку» (.$ext)") {
-                    actionEntry = null
-                    appVm.updateSettings { it.copy(assoc = it.assoc - ext) }
                 }
             }
             SheetAction(Icons.Filled.Delete, "Удалить", danger = true) {
@@ -356,6 +445,20 @@ fun BrowseScreen(
             dismissButton = {
                 TextButton(onClick = { deleteEntry = null }) { Text("Отмена") }
             }
+        )
+    }
+
+    propsEntry?.let { e ->
+        PropsDialog(e = e, units = settings.units, onDismiss = { propsEntry = null })
+    }
+
+    if (newFolder) {
+        NewFolderDialog(
+            onConfirm = {
+                vm.newFolder(path, it, isRoot)
+                newFolder = false
+            },
+            onDismiss = { newFolder = false }
         )
     }
 }
@@ -409,10 +512,9 @@ private fun SheetAction(icon: ImageVector, label: String, danger: Boolean = fals
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Icon(
             icon,
@@ -420,6 +522,7 @@ private fun SheetAction(icon: ImageVector, label: String, danger: Boolean = fals
             tint = if (danger) MaterialTheme.colorScheme.error
             else MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(Modifier.width(14.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
@@ -449,6 +552,74 @@ private fun RenameDialog(current: String, onConfirm: (String) -> Unit, onDismiss
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
     )
+}
+
+@Composable
+private fun NewFolderDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Новая папка") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                label = { Text("Имя папки") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (text.isNotBlank()) onConfirm(text.trim()) },
+                enabled = text.isNotBlank()
+            ) { Text("Создать") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
+    )
+}
+
+@Composable
+private fun PropsDialog(e: FsEntry, units: String, onDismiss: () -> Unit) {
+    val f = remember(e) { runCatching { File(e.path) }.getOrNull() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Свойства", style = MaterialTheme.typography.titleMedium) },
+        text = {
+            Column {
+                PropRow("Имя", e.name)
+                PropRow("Путь", e.path)
+                PropRow("Тип", if (e.isDir) "Папка" else "Файл")
+                if (!e.isDir) PropRow("Размер", Fmt.size(e.size, units))
+                if (e.lastModified > 0) PropRow("Изменён", dateFormat.format(Date(e.lastModified)))
+                f?.let {
+                    PropRow("Чтение", if (it.canRead()) "да" else "нет")
+                    PropRow("Запись", if (it.canWrite()) "да" else "нет")
+                }
+                if (e.isRoot) PropRow("Доступ", "через root (su)")
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Готово") } }
+    )
+}
+
+@Composable
+private fun PropRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(
+            text = label,
+            modifier = Modifier.width(90.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
 }
 
 private fun toast(context: Context, msg: String) {

@@ -275,42 +275,6 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(24.dp))
-            SectionTitle("Ассоциации файлов")
-            Spacer(Modifier.height(10.dp))
-            SettingsCard {
-                if (settings.assoc.isEmpty()) {
-                    Text(
-                        text = "Расширения, которые вы открывали через читалку, запомнятся здесь — дальше они будут открываться в ней сразу, без диалога.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    settings.assoc.forEach { (ext, _) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = ".$ext",
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                text = "Читалка AnyText",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            TextButton(onClick = {
-                                vm.updateSettings { it.copy(assoc = it.assoc - ext) }
-                            }) { Text("Сбросить") }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
             SectionTitle("О приложении")
             Spacer(Modifier.height(10.dp))
             SettingsCard {

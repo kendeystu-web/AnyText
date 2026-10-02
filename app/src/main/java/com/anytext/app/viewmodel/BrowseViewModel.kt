@@ -30,6 +30,10 @@ class BrowseViewModel(app: Application) : AndroidViewModel(app) {
     private val _ui = MutableStateFlow(Ui())
     val ui: StateFlow<Ui> = _ui
 
+    /** Буфер копирования: ("copy"|"cut") to исходный путь */
+    private val _clip = MutableStateFlow<Pair<String, String>?>(null)
+    val clip: StateFlow<Pair<String, String>?> = _clip
+
     private var currentPath = ""
     private var currentRoot = false
 
@@ -153,6 +157,66 @@ class BrowseViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { toast("Ошибка: ${e.message}") }
             }
+        }
+    }
+
+    fun copy(e: FsEntry) {
+        _clip.value = "copy" to e.path
+    }
+
+    fun cut(e: FsEntry) {
+        _clip.value = "cut" to e.path
+    }
+
+    fun cancelClip() {
+        _clip.value = null
+    }
+
+    /** Вставка из буфера в текущую папку (java-операции, для root — через su) */
+    fun paste(context: Context) {
+        val (op, src) = _clip.value ?: return
+        val name = src.trimEnd('/').substringAfterLast('/')
+        val dst = RootShell.joinPath(currentPath, name)
+        viewModelScope.launch(Dispatchers.IO) {
+            val useSu = currentRoot || !File(currentPath).canWrite()
+            var ok = false
+            try {
+                ok = if (useSu) {
+                    if (op == "cut") RootShell.sh("mv ${RootShell.quote(src)} ${RootShell.quote(dst)}")
+                    else RootShell.sh("cp -R ${RootShell.quote(src)} ${RootShell.quote(dst)}")
+                } else {
+                    val s = File(src)
+                    val d = File(dst)
+                    if (op == "cut") {
+                        s.renameTo(d) || (s.copyRecursively(d) && s.deleteRecursively())
+                    } else {
+                        if (s.isDirectory) s.copyRecursively(d)
+                        else runCatching { s.copyTo(d); true }.getOrDefault(false)
+                    }
+                }
+            } catch (e: Exception) {
+                ok = false
+            }
+            if (op == "cut" || ok) _clip.value = null
+            withContext(Dispatchers.Main) {
+                toast(
+                    when {
+                        ok -> if (op == "cut") "Перемещено" else "Скопировано"
+                        else -> "Не удалось ${if (op == "cut") "переместить" else "скопировать"} (нет доступа?)"
+                    }
+                )
+            }
+            open(currentPath, currentRoot)
+        }
+    }
+
+    /** Создание папки в родительском каталоге */
+    fun newFolder(parent: String, name: String, root: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val p = RootShell.joinPath(parent, name)
+            val ok = if (root) RootShell.sh("mkdir -p ${RootShell.quote(p)}") else File(p).mkdirs()
+            if (!ok) withContext(Dispatchers.Main) { toast("Не удалось создать папку") }
+            open(parent, root)
         }
     }
 

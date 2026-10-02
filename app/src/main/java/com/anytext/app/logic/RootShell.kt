@@ -55,9 +55,13 @@ object RootShell {
         false
     }
 
-    fun rm(path: String): Boolean = try {
-        val proc = ProcessBuilder("su", "-c", "rm -rf ${quote(path)}").start()
-        proc.waitFor(15, TimeUnit.SECONDS)
+    fun rm(path: String): Boolean = sh("rm -rf ${quote(path)}")
+
+    /** Произвольная команда через su */
+    fun sh(cmd: String): Boolean = try {
+        val proc = ProcessBuilder("su", "-c", cmd).start()
+        proc.errorStream.close()
+        proc.waitFor(30, TimeUnit.SECONDS)
         proc.exitValue() == 0
     } catch (e: Exception) {
         false
