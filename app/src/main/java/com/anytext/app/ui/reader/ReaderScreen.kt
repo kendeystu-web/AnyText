@@ -928,7 +928,6 @@ private fun EditView(
                 color = MaterialTheme.colorScheme.onSurface
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
             visualTransformation = if (liveHl && lang != null) {
                 VisualTransformation { t ->
                     TransformedText(annotateCode(t.text, lang), OffsetMapping.Identity)

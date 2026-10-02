@@ -114,6 +114,11 @@ private fun fileIcon(name: String): ImageVector = when (name.substringAfterLast(
 
 private val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
 
+/** Архивы никогда не открываем сами и не запоминаем за читалкой — только в архиваторы */
+private val archiveExts = setOf(
+    "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "cab", "iso", "apk", "jar"
+)
+
 @Composable
 fun BrowseScreen(
     path: String,
@@ -245,12 +250,15 @@ fun BrowseScreen(
                                     e = e,
                                     units = settings.units,
                                     onClick = {
+                                        val ext = e.name.substringAfterLast('.', "").lowercase()
                                         when {
                                             e.isDir -> onOpenDir(e.path)
+                                            // архивы всегда в системный диалог (WinRAR/7z и т.п.)
+                                            ext in archiveExts -> vm.openSystemChooser(e, context)
                                             // расширение запомнено за нашей читалкой — открываем сразу в ней
-                                            settings.assoc[e.name.substringAfterLast('.', "").lowercase()] == "reader" ->
+                                            settings.assoc[ext] == "reader" ->
                                                 vm.specFor(e) { spec -> onOpenFile(spec) }
-                                            // иначе — системный диалог: zip уйдёт в архиватор и т.п.
+                                            // иначе — системный диалог выбора приложения
                                             else -> vm.openSystemChooser(e, context)
                                         }
                                     },
